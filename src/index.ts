@@ -13,6 +13,7 @@ import connectDB from "./config/db";
 import { startListeningToGameEvents } from "./services/gameEventService";
 import { updatePlayerScore } from "./services/playerService";
 import { createAdapter } from "@socket.io/redis-adapter";
+import { distributeMoney } from "./services/distributeMoneyService";
 dotenv.config();
 const app = express();
 const server = createServer(app);
@@ -44,6 +45,7 @@ io.on("connection", (socket) => {
   });
 });
 
+distributeMoney();
 app.post("/simulate-score-update", async (req, res) => {
   try {
     const { playerId, newScore } = req.body;

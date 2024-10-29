@@ -4,6 +4,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import { getLeaderboard } from "./services/leaderboardService";
 import {
+  client,
   connectPubSub,
   connectRedis,
   publisher,
@@ -45,7 +46,6 @@ io.on("connection", (socket) => {
   });
 });
 
-distributeMoney();
 app.post("/simulate-score-update", async (req, res) => {
   try {
     const { playerId, newScore } = req.body;
@@ -54,6 +54,18 @@ app.post("/simulate-score-update", async (req, res) => {
   } catch (error) {
     console.error("Error updating player score:", error);
     res.status(500).send("Error updating player score");
+  }
+});
+
+app.post("/api/leaderboard/reset-weekly", async (req, res) => {
+  try {
+    console.log("lan");
+    await distributeMoney();
+    await client.del("leaderboard:weekly");
+    res.status(200).send("Leaderboard is resetted");
+  } catch (error) {
+    console.error(error);
+    res.status(500).send(error);
   }
 });
 

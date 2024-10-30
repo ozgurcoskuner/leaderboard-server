@@ -32,10 +32,13 @@ export const getLeaderboard = async (playerId: string) => {
       dbPlayers.map((player) => [player.playerId, player.toObject()])
     );
 
-    const leaderboard = allPlayers.map(({ value, score }) => ({
-      ...dbPlayersMap.get(Number(value)),
-      weeklyMoney: score,
-    }));
+    const leaderboard = await Promise.all(
+      allPlayers.map(async ({ value, score }) => ({
+        ...dbPlayersMap.get(Number(value)),
+        weeklyMoney: score,
+        dailyDiff: (await client.hGet("ranking-change:daily", value)) || 0,
+      }))
+    );
 
     return leaderboard;
   } catch (e) {

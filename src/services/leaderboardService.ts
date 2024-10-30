@@ -4,22 +4,30 @@ import {
   LEADERBOARD_WEEKLY,
   RANKING_CHANGE_DAILY,
   TOP_PLAYERS_COUNT,
+  ABOVE_PLAYER_COUNT,
+  BELOW_PLAYER_COUNT,
 } from "../constants";
 
 export const getLeaderboard = async (playerId: string) => {
   try {
+    const pipeline = client.multi();
     const playerRank = await client.zRevRank(LEADERBOARD_WEEKLY, playerId);
-    if (!playerRank) return;
-    let surrondingPlayers: { score: number; value: string }[] = [];
-    // check cases for 98, 99, 100, 101
-    if (playerRank > 97) {
-      surrondingPlayers = await client.zRangeWithScores(
-        LEADERBOARD_WEEKLY,
-        Math.max(playerRank - 3, 0),
-        playerRank + 2,
-        { REV: true }
-      );
+
+    if (playerRank === null) {
+      return "User not found";
     }
+    const [start, end] = [
+      Math.max(playerRank - ABOVE_PLAYER_COUNT, 0),
+      playerRank + BELOW_PLAYER_COUNT,
+    ];
+
+    const surrondingPlayers = await client.zRangeWithScores(
+      LEADERBOARD_WEEKLY,
+      start,
+      end,
+      { REV: true }
+    );
+
     const top100Players = await client.zRangeWithScores(
       LEADERBOARD_WEEKLY,
       0,
@@ -27,21 +35,33 @@ export const getLeaderboard = async (playerId: string) => {
       { REV: true }
     );
 
-    const allPlayers = [...top100Players, ...surrondingPlayers];
+    const top100PlayerIds = new Set(
+      top100Players.map((player) => player.value)
+    );
+    const allPlayers = [
+      ...top100Players,
+      ...surrondingPlayers.filter(
+        (player) => !top100PlayerIds.has(player.value)
+      ),
+    ];
 
     const playerIds = allPlayers.map(({ value }) => Number(value));
     const dbPlayers = await Player.find({ playerId: { $in: playerIds } });
+
     const dbPlayersMap = new Map(
       dbPlayers.map((player) => [player.playerId, player.toObject()])
     );
+    allPlayers.forEach(({ value }) => {
+      pipeline.hGet(RANKING_CHANGE_DAILY, value);
+    });
 
-    const leaderboard = await Promise.all(
-      allPlayers.map(async ({ value, score }) => ({
-        ...dbPlayersMap.get(Number(value)),
-        weeklyMoney: score,
-        dailyDiff: (await client.hGet(RANKING_CHANGE_DAILY, value)) || 0,
-      }))
-    );
+    const dailyRankDiffs = await pipeline.exec();
+
+    const leaderboard = allPlayers.map(({ value, score }, index) => ({
+      ...dbPlayersMap.get(Number(value)),
+      weeklyMoney: score,
+      dailyDiff: dailyRankDiffs[index] || 0,
+    }));
 
     return leaderboard;
   } catch (e) {

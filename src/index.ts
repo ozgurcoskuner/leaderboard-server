@@ -30,9 +30,18 @@ const PORT = process.env.PORT || 5000;
 
 const userMap = new Map<string, { playerId: string }>();
 io.adapter(createAdapter(publisher, subscriber));
-connectDB();
-connectRedis();
-connectPubSub().then(() => startListeningToGameEvents(userMap));
+
+(async () => {
+  try {
+    await connectDB();
+    await connectRedis();
+    await connectPubSub();
+  } catch (e) {
+    console.error(e);
+  }
+})();
+
+startListeningToGameEvents(userMap);
 
 app.use(express.json());
 
@@ -65,7 +74,6 @@ app.post("/simulate-score-update", async (req, res) => {
 
 app.post("/api/leaderboard/reset-weekly", async (req, res) => {
   try {
-    console.log("lan");
     await distributeMoney();
     await client.del("leaderboard:weekly");
     res.status(200).send("Leaderboard is resetted");

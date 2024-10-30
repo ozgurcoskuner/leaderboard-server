@@ -15,6 +15,12 @@ import { startListeningToGameEvents } from "./services/gameEventService";
 import { updatePlayerScore } from "./services/playerService";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { distributeMoney } from "./services/distributeMoneyService";
+import {
+  CONNECTION_EVENT,
+  DISCONNECT_EVENT,
+  LEADERBOARD_DATA_EVENT,
+  REGISTER_PLAYER_EVENT,
+} from "./constants";
 dotenv.config();
 const app = express();
 const server = createServer(app);
@@ -30,18 +36,18 @@ connectPubSub().then(() => startListeningToGameEvents(userMap));
 
 app.use(express.json());
 
-io.on("connection", (socket) => {
+io.on(CONNECTION_EVENT, (socket) => {
   console.log("A user connected");
 
-  socket.on("registerPlayer", async () => {
+  socket.on(REGISTER_PLAYER_EVENT, async () => {
     const playerId = "123";
     userMap.set(socket.id, { playerId });
     const leaderboardData = await getLeaderboard(playerId);
 
-    socket.emit("leaderboardData", leaderboardData);
+    socket.emit(LEADERBOARD_DATA_EVENT, leaderboardData);
   });
 
-  socket.on("disconnect", () => {
+  socket.on(DISCONNECT_EVENT, () => {
     console.log("User disconnected");
   });
 });

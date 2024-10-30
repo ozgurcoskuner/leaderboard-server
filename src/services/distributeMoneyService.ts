@@ -1,14 +1,11 @@
 import { client } from "../config/redis";
+import {
+  LEADERBOARD_WEEKLY,
+  PRIZE_POOL_RATIO,
+  REWARDS,
+  TOP_PLAYERS_COUNT,
+} from "../constants";
 import Player from "../models/playerModel";
-
-const rewards = {
-  1: 0.2,
-  2: 0.15,
-  3: 0.1,
-};
-const PRIZE_POOL_RATIO = 0.02;
-const LEADERBOARD_WEEKLY = "leaderboard:weekly";
-const TOP_PLAYERS_COUNT = 100;
 
 export const distributeMoney = async () => {
   try {
@@ -25,9 +22,9 @@ export const distributeMoney = async () => {
     const prizePool = totalMoney * PRIZE_POOL_RATIO;
     const [firstPlayer, secondPlayer, thirdPlayer, ...remainingPlayers] =
       allPlayers.slice(0, TOP_PLAYERS_COUNT);
-    const firstPlayerReward = prizePool * rewards[1];
-    const secondPlayerReward = prizePool * rewards[2];
-    const thirdPlayerReward = prizePool * rewards[3];
+    const firstPlayerReward = prizePool * REWARDS[1];
+    const secondPlayerReward = prizePool * REWARDS[2];
+    const thirdPlayerReward = prizePool * REWARDS[3];
     const paymentToTopPlayers = [
       {
         playerId: Number(firstPlayer.value),

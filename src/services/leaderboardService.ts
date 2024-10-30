@@ -1,7 +1,10 @@
 import { client } from "../config/redis";
 import Player from "../models/playerModel";
-
-const LEADERBOARD_WEEKLY = "leaderboard:weekly";
+import {
+  LEADERBOARD_WEEKLY,
+  RANKING_CHANGE_DAILY,
+  TOP_PLAYERS_COUNT,
+} from "../constants";
 
 export const getLeaderboard = async (playerId: string) => {
   try {
@@ -20,7 +23,7 @@ export const getLeaderboard = async (playerId: string) => {
     const top100Players = await client.zRangeWithScores(
       LEADERBOARD_WEEKLY,
       0,
-      99,
+      TOP_PLAYERS_COUNT - 1,
       { REV: true }
     );
 
@@ -36,7 +39,7 @@ export const getLeaderboard = async (playerId: string) => {
       allPlayers.map(async ({ value, score }) => ({
         ...dbPlayersMap.get(Number(value)),
         weeklyMoney: score,
-        dailyDiff: (await client.hGet("ranking-change:daily", value)) || 0,
+        dailyDiff: (await client.hGet(RANKING_CHANGE_DAILY, value)) || 0,
       }))
     );
 

@@ -1,56 +1,43 @@
 import { client, publisher } from "../config/redis";
-const LEADERBOARD_WEEKLY = "leaderboard:weekly";
+import {
+  ABOVE_PLAYER_COUNT,
+  BELOW_PLAYER_COUNT,
+  GAME_EVENT_CHANNEL,
+  LEADERBOARD_WEEKLY,
+  TOP_PLAYERS_COUNT,
+} from "../constants";
+import { updatePlayerRanks } from "./updatePlayerRanks";
 
 const updatePlayerScore = async (playerId: string, newScore: number) => {
   try {
-    const pipeline = client.multi();
     const oldPlayerRank = await client.zRevRank(LEADERBOARD_WEEKLY, playerId);
 
     await client.zAdd(LEADERBOARD_WEEKLY, { score: newScore, value: playerId });
 
     const newPlayerRank = await client.zRevRank(LEADERBOARD_WEEKLY, playerId);
 
-    console.log(playerId, oldPlayerRank, newPlayerRank);
     if (newPlayerRank === null || oldPlayerRank === null)
       return "User not found";
 
-    const rankDiff = oldPlayerRank - newPlayerRank;
-    if (rankDiff != 0) {
-      const [start, end] =
-        rankDiff > 0
-          ? [newPlayerRank + 1, oldPlayerRank]
-          : [oldPlayerRank, newPlayerRank - 1];
-      const changedRankDiffPlayers = await client.zRangeWithScores(
-        LEADERBOARD_WEEKLY,
-        start,
-        end,
-        { REV: true }
-      );
-      pipeline.hIncrBy("ranking-change:daily", playerId, rankDiff);
-      changedRankDiffPlayers.forEach(({ value }) =>
-        pipeline.hIncrBy("ranking-change:daily", value, rankDiff > 0 ? -1 : 1)
-      );
-    }
-
-    await pipeline.exec();
+    await updatePlayerRanks(playerId, oldPlayerRank, newPlayerRank);
 
     let surroundingPlayersIds: string[] = [];
-    if (newPlayerRank < 100) {
+    if (newPlayerRank < TOP_PLAYERS_COUNT) {
       publisher.publish(
-        "gameEvents",
+        GAME_EVENT_CHANNEL,
         JSON.stringify({ top100: true, playerId })
       );
     } else {
       const surroundingPlayers = await client.zRangeWithScores(
         LEADERBOARD_WEEKLY,
-        Math.max(newPlayerRank - 3, 0),
-        newPlayerRank + 2,
+        Math.max(newPlayerRank - ABOVE_PLAYER_COUNT, 0),
+        newPlayerRank + BELOW_PLAYER_COUNT,
         { REV: true }
       );
       surroundingPlayersIds = surroundingPlayers.map(({ value }) => value);
 
       publisher.publish(
-        "gameEvents",
+        GAME_EVENT_CHANNEL,
         JSON.stringify({ top100: false, playerId, surroundingPlayersIds })
       );
     }

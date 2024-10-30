@@ -1,8 +1,7 @@
 import { subscriber } from "../config/redis";
+import { GAME_EVENT_CHANNEL, LEADERBOARD_DATA_EVENT } from "../constants";
 import { io } from "../index";
 import { getLeaderboard } from "./leaderboardService";
-
-const GAME_EVENT_CHANNEL = "gameEvents";
 
 const startListeningToGameEvents = (
   userMap: Map<string, { playerId: string }>
@@ -12,12 +11,15 @@ const startListeningToGameEvents = (
     // Send everyone
     if (top100) {
       const leaderboardData = await getLeaderboard(playerId);
-      io.emit("leaderboardData", leaderboardData);
+      io.emit(LEADERBOARD_DATA_EVENT, leaderboardData);
     } else if (surroundingPlayersIds) {
       // Send updats to surrndng ranks
       userMap.forEach(async ({ playerId: userId }, socketId) => {
         if (surroundingPlayersIds.includes(userId) || userId === playerId) {
-          io.to(socketId).emit("leaderboardData", await getLeaderboard(userId));
+          io.to(socketId).emit(
+            LEADERBOARD_DATA_EVENT,
+            await getLeaderboard(userId)
+          );
         }
       });
     }

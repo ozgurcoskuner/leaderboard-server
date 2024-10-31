@@ -20,8 +20,12 @@ import {
   CONNECTION_EVENT,
   DISCONNECT_EVENT,
   LEADERBOARD_DATA_EVENT,
+  LEADERBOARD_UPDATE,
+  LEADERBOARD_WEEKLY,
+  RANKING_CHANGE_DAILY,
   REGISTER_PLAYER_EVENT,
 } from "./constants";
+import { resetLeaderboard } from "./services/resetLeaderboardService";
 dotenv.config();
 const app = express();
 const server = createServer(app);
@@ -75,11 +79,23 @@ app.post("/simulate-score-update", async (req, res) => {
   }
 });
 
-app.post("/api/leaderboard/reset-weekly", async (req, res) => {
+app.post("/api/leaderboard/reset-leaderboard", async (req, res) => {
   try {
     await distributeMoney();
-    await client.del("leaderboard:weekly");
+    await resetLeaderboard();
+    io.emit(LEADERBOARD_UPDATE);
     res.status(200).send("Leaderboard is resetted");
+  } catch (error) {
+    console.error(error);
+    res.status(500).send(error);
+  }
+});
+
+app.post("/api/leaderboard/reset-ranking-change", async (req, res) => {
+  try {
+    await client.del(RANKING_CHANGE_DAILY);
+    io.emit(LEADERBOARD_UPDATE);
+    res.status(200).send("Daily ranking change resetted");
   } catch (error) {
     console.error(error);
     res.status(500).send(error);

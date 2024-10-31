@@ -10,7 +10,8 @@ import {
 
 export const getLeaderboard = async (playerId: string) => {
   try {
-    const pipeline = client.multi();
+    const dailyDiffPipeline = client.multi();
+    const ranksPipeline = client.multi();
     const playerRank = await client.zRevRank(LEADERBOARD_WEEKLY, playerId);
 
     if (playerRank === null) {
@@ -52,15 +53,20 @@ export const getLeaderboard = async (playerId: string) => {
       dbPlayers.map((player) => [player.playerId, player.toObject()])
     );
     allPlayers.forEach(({ value }) => {
-      pipeline.hGet(RANKING_CHANGE_DAILY, value);
+      dailyDiffPipeline.hGet(RANKING_CHANGE_DAILY, value);
+      ranksPipeline.zRevRank(LEADERBOARD_WEEKLY, value);
     });
 
-    const dailyRankDiffs = await pipeline.exec();
+    const [dailyRankDiffs, ranks] = await Promise.all([
+      dailyDiffPipeline.exec(),
+      ranksPipeline.exec(),
+    ]);
 
     const leaderboard = allPlayers.map(({ value, score }, index) => ({
       ...dbPlayersMap.get(Number(value)),
       weeklyMoney: score,
       dailyDiff: dailyRankDiffs[index] || 0,
+      rank: ((ranks[index] || 0) as number) + 1,
     }));
 
     return leaderboard;

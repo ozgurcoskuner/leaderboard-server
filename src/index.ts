@@ -1,5 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
+import cors from "cors";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { getLeaderboard } from "./services/leaderboardService";
@@ -24,12 +25,17 @@ import {
 dotenv.config();
 const app = express();
 const server = createServer(app);
-export const io = new Server(server);
+export const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173",
+  },
+});
 
 const PORT = process.env.PORT || 5000;
 
 const userMap = new Map<string, { playerId: string }>();
 io.adapter(createAdapter(publisher, subscriber));
+app.use(express.json());
 
 (async () => {
   try {
@@ -43,13 +49,10 @@ io.adapter(createAdapter(publisher, subscriber));
 
 startListeningToGameEvents(userMap);
 
-app.use(express.json());
-
 io.on(CONNECTION_EVENT, (socket) => {
   console.log("A user connected");
 
-  socket.on(REGISTER_PLAYER_EVENT, async () => {
-    const playerId = "123";
+  socket.on(REGISTER_PLAYER_EVENT, async (playerId) => {
     userMap.set(socket.id, { playerId });
     const leaderboardData = await getLeaderboard(playerId);
 

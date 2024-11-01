@@ -44,29 +44,31 @@ const updatePlayerRanks = async (
 };
 
 const updateAffectedPlayers = async (
-  playerId: string,
+  oldPlayerRank: number,
   newPlayerRank: number
 ) => {
-  let surroundingPlayersIds: string[] = [];
-  if (newPlayerRank < TOP_PLAYERS_COUNT) {
-    publisher.publish(
-      GAME_EVENT_CHANNEL,
-      JSON.stringify({ top100: true, playerId })
-    );
-  } else {
-    const surroundingPlayers = await client.zRangeWithScores(
-      LEADERBOARD_WEEKLY,
-      Math.max(newPlayerRank - BELOW_PLAYER_COUNT, 0),
-      newPlayerRank + ABOVE_PLAYER_COUNT,
-      { REV: true }
-    );
-    surroundingPlayersIds = surroundingPlayers.map(({ value }) => value);
+  const isTop100 = newPlayerRank < TOP_PLAYERS_COUNT;
+  const pipeline = client.multi();
+  pipeline.zRange(
+    LEADERBOARD_WEEKLY,
+    Math.max(oldPlayerRank - ABOVE_PLAYER_COUNT, 0),
+    oldPlayerRank + ABOVE_PLAYER_COUNT,
+    { REV: true }
+  );
+  pipeline.zRange(
+    LEADERBOARD_WEEKLY,
+    Math.max(newPlayerRank - ABOVE_PLAYER_COUNT, 0),
+    newPlayerRank + ABOVE_PLAYER_COUNT,
+    { REV: true }
+  );
+  const result = await pipeline.exec();
+  const surrondingPlayersSet = new Set(result.flat());
+  const surroundingPlayersIds = Array.from(surrondingPlayersSet);
 
-    publisher.publish(
-      GAME_EVENT_CHANNEL,
-      JSON.stringify({ top100: false, playerId, surroundingPlayersIds })
-    );
-  }
+  publisher.publish(
+    GAME_EVENT_CHANNEL,
+    JSON.stringify({ isTop100, surroundingPlayersIds })
+  );
 };
 const handleScoreUpdate = async (playerId: string, newScore: number) => {
   try {
@@ -79,7 +81,7 @@ const handleScoreUpdate = async (playerId: string, newScore: number) => {
     }
 
     await updatePlayerRanks(playerId, oldPlayerRank, newPlayerRank);
-    await updateAffectedPlayers(playerId, newPlayerRank);
+    await updateAffectedPlayers(oldPlayerRank, newPlayerRank);
   } catch (e) {
     console.error(e);
   }

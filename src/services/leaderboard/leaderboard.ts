@@ -22,7 +22,7 @@ export const getLeaderboard = async (playerId: string) => {
       playerRank + BELOW_PLAYER_COUNT,
     ];
 
-    const surrondingPlayers = await client.zRangeWithScores(
+    const surroundingPlayers = await client.zRangeWithScores(
       LEADERBOARD_WEEKLY,
       start,
       end,
@@ -41,7 +41,7 @@ export const getLeaderboard = async (playerId: string) => {
     );
     const allPlayers = [
       ...top100Players,
-      ...surrondingPlayers.filter(
+      ...surroundingPlayers.filter(
         (player) => !top100PlayerIds.has(player.value)
       ),
     ];

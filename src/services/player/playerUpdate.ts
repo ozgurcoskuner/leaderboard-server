@@ -56,8 +56,8 @@ const updateAffectedPlayers = async (
   } else {
     const surroundingPlayers = await client.zRangeWithScores(
       LEADERBOARD_WEEKLY,
-      Math.max(newPlayerRank - ABOVE_PLAYER_COUNT, 0),
-      newPlayerRank + BELOW_PLAYER_COUNT,
+      Math.max(newPlayerRank - BELOW_PLAYER_COUNT, 0),
+      newPlayerRank + ABOVE_PLAYER_COUNT,
       { REV: true }
     );
     surroundingPlayersIds = surroundingPlayers.map(({ value }) => value);

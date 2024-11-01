@@ -12,18 +12,14 @@ import {
 } from "./config/redis";
 import connectDB from "./config/db";
 import { leaderboardEventListener } from "./services/leaderboard/leaderboardEventListener";
-import { handleScoreUpdate } from "./services/player/playerUpdate";
 import { createAdapter } from "@socket.io/redis-adapter";
-import { distributeMoney } from "./services/leaderboard/distributeMoney";
+
 import {
   CONNECTION_EVENT,
   DISCONNECT_EVENT,
   LEADERBOARD_DATA_EVENT,
-  LEADERBOARD_UPDATE,
-  RANKING_CHANGE_DAILY,
   REGISTER_PLAYER_EVENT,
 } from "./constants";
-import { resetLeaderboard } from "./services/leaderboard/resetLeaderboard";
 import apiRoutes from "./routes/api";
 
 dotenv.config();
@@ -40,7 +36,7 @@ const PORT = process.env.PORT || 5000;
 const userMap = new Map<string, { playerId: string }>();
 io.adapter(createAdapter(publisher, subscriber));
 app.use(express.json());
-app.use("/api", apiRoutes); // Use the API routes
+app.use("/api", apiRoutes);
 
 (async () => {
   try {
@@ -67,40 +63,6 @@ io.on(CONNECTION_EVENT, (socket) => {
   socket.on(DISCONNECT_EVENT, () => {
     console.log("User disconnected");
   });
-});
-
-app.post("/simulate-score-update", async (req, res) => {
-  try {
-    const { playerId, newScore } = req.body;
-    await handleScoreUpdate(playerId, newScore);
-    res.send(`Updated score for playerr ${playerId} to ${newScore}`);
-  } catch (error) {
-    console.error("Error updating player score:", error);
-    res.status(500).send("Error updating player score");
-  }
-});
-
-app.post("/api/leaderboard/reset-leaderboard", async (req, res) => {
-  try {
-    await distributeMoney();
-    await resetLeaderboard();
-    io.emit(LEADERBOARD_UPDATE);
-    res.status(200).send("Leaderboard is resetted");
-  } catch (error) {
-    console.error(error);
-    res.status(500).send(error);
-  }
-});
-
-app.post("/api/leaderboard/reset-ranking-change", async (req, res) => {
-  try {
-    await client.del(RANKING_CHANGE_DAILY);
-    io.emit(LEADERBOARD_UPDATE);
-    res.status(200).send("Daily ranking change resetted");
-  } catch (error) {
-    console.error(error);
-    res.status(500).send(error);
-  }
 });
 
 server.listen(PORT, () => {

@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  addDummyPlayers,
   resetLeaderboardController,
   resetRankingChangeController,
   simulateScoreUpdate,
@@ -13,5 +14,6 @@ router.post("/leaderboard/reset-ranking-change", resetRankingChangeController);
 
 //test purpose routes
 router.post("/simulate-score-update", simulateScoreUpdate);
+router.post("/add-dummy-players", addDummyPlayers);
 
 export default router;

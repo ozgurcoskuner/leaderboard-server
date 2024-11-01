@@ -1,9 +1,8 @@
 import express from "express";
 import dotenv from "dotenv";
-import cors from "cors";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import { getLeaderboard } from "./services/leaderboardService";
+import { getLeaderboard } from "./services/leaderboard/leaderboard";
 import {
   client,
   connectPubSub,
@@ -12,20 +11,21 @@ import {
   subscriber,
 } from "./config/redis";
 import connectDB from "./config/db";
-import { startListeningToGameEvents } from "./services/gameEventService";
-import { updatePlayerScore } from "./services/playerService";
+import { leaderboardEventListener } from "./services/leaderboard/leaderboardEventListener";
+import { handleScoreUpdate } from "./services/player/playerUpdate";
 import { createAdapter } from "@socket.io/redis-adapter";
-import { distributeMoney } from "./services/distributeMoneyService";
+import { distributeMoney } from "./services/leaderboard/distributeMoney";
 import {
   CONNECTION_EVENT,
   DISCONNECT_EVENT,
   LEADERBOARD_DATA_EVENT,
   LEADERBOARD_UPDATE,
-  LEADERBOARD_WEEKLY,
   RANKING_CHANGE_DAILY,
   REGISTER_PLAYER_EVENT,
 } from "./constants";
-import { resetLeaderboard } from "./services/resetLeaderboardService";
+import { resetLeaderboard } from "./services/leaderboard/resetLeaderboard";
+import apiRoutes from "./routes/api";
+
 dotenv.config();
 const app = express();
 const server = createServer(app);
@@ -40,6 +40,7 @@ const PORT = process.env.PORT || 5000;
 const userMap = new Map<string, { playerId: string }>();
 io.adapter(createAdapter(publisher, subscriber));
 app.use(express.json());
+app.use("/api", apiRoutes); // Use the API routes
 
 (async () => {
   try {
@@ -51,7 +52,7 @@ app.use(express.json());
   }
 })();
 
-startListeningToGameEvents(userMap);
+leaderboardEventListener(userMap);
 
 io.on(CONNECTION_EVENT, (socket) => {
   console.log("A user connected");
@@ -71,7 +72,7 @@ io.on(CONNECTION_EVENT, (socket) => {
 app.post("/simulate-score-update", async (req, res) => {
   try {
     const { playerId, newScore } = req.body;
-    await updatePlayerScore(playerId, newScore);
+    await handleScoreUpdate(playerId, newScore);
     res.send(`Updated score for playerr ${playerId} to ${newScore}`);
   } catch (error) {
     console.error("Error updating player score:", error);

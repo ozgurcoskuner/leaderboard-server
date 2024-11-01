@@ -1,9 +1,9 @@
-import { subscriber } from "../config/redis";
-import { GAME_EVENT_CHANNEL, LEADERBOARD_DATA_EVENT } from "../constants";
-import { io } from "../index";
-import { getLeaderboard } from "./leaderboardService";
+import { subscriber } from "../../config/redis";
+import { GAME_EVENT_CHANNEL, LEADERBOARD_DATA_EVENT } from "../../constants";
+import { io } from "../../index";
+import { getLeaderboard } from "./leaderboard";
 
-const startListeningToGameEvents = (
+const leaderboardEventListener = (
   userMap: Map<string, { playerId: string }>
 ) => {
   subscriber.subscribe(GAME_EVENT_CHANNEL, async (message) => {
@@ -22,4 +22,4 @@ const startListeningToGameEvents = (
   });
 };
 
-export { startListeningToGameEvents };
+export { leaderboardEventListener };

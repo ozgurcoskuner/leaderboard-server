@@ -1,11 +1,11 @@
-import { client } from "../config/redis";
+import { client } from "../../config/redis";
 import {
   LEADERBOARD_WEEKLY,
   PRIZE_POOL_RATIO,
   REWARDS,
   TOP_PLAYERS_COUNT,
-} from "../constants";
-import Player from "../models/playerModel";
+} from "../../constants";
+import Player from "../../models/playerModel";
 
 export const distributeMoney = async () => {
   try {

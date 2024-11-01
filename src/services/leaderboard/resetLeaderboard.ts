@@ -1,5 +1,5 @@
-import { client } from "../config/redis";
-import { LEADERBOARD_WEEKLY } from "../constants";
+import { client } from "../../config/redis";
+import { LEADERBOARD_WEEKLY } from "../../constants";
 
 export const resetLeaderboard = async () => {
   const allPlayers = await client.zRangeWithScores(LEADERBOARD_WEEKLY, 0, -1);

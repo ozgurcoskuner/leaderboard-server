@@ -1,12 +1,12 @@
-import { client } from "../config/redis";
-import Player from "../models/playerModel";
+import { client } from "../../config/redis";
+import Player from "../../models/playerModel";
 import {
   LEADERBOARD_WEEKLY,
   RANKING_CHANGE_DAILY,
   TOP_PLAYERS_COUNT,
   ABOVE_PLAYER_COUNT,
   BELOW_PLAYER_COUNT,
-} from "../constants";
+} from "../../constants";
 
 export const getLeaderboard = async (playerId: string) => {
   try {
@@ -15,7 +15,7 @@ export const getLeaderboard = async (playerId: string) => {
     const playerRank = await client.zRevRank(LEADERBOARD_WEEKLY, playerId);
 
     if (playerRank === null) {
-      return "User not found";
+      throw new Error("Rank not found");
     }
     const [start, end] = [
       Math.max(playerRank - ABOVE_PLAYER_COUNT, 0),

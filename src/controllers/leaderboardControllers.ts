@@ -11,6 +11,7 @@ import { io } from "..";
 import { handleScoreUpdate } from "../services/player/playerUpdate";
 import PlayerModel from "../models/playerModel";
 
+// google scheduler hits every Sunday
 export const resetLeaderboardController = async (
   req: Request,
   res: Response
@@ -18,14 +19,16 @@ export const resetLeaderboardController = async (
   try {
     await distributeMoney();
     await resetLeaderboard();
+    await client.del(RANKING_CHANGE_DAILY);
     io.emit(LEADERBOARD_UPDATE);
-    res.status(200).send("Leaderboard is reset");
+    res.status(200).send("Leaderboard is resetted");
   } catch (error) {
     console.error(error);
     res.status(500).send(error);
   }
 };
 
+// google scheduler hits daily
 export const resetRankingChangeController = async (
   req: Request,
   res: Response

@@ -47,17 +47,18 @@ const updateAffectedPlayers = async (
   oldPlayerRank: number,
   newPlayerRank: number
 ) => {
-  const isTop100 = newPlayerRank < TOP_PLAYERS_COUNT;
+  const isTop100 =
+    newPlayerRank < TOP_PLAYERS_COUNT || oldPlayerRank < TOP_PLAYERS_COUNT;
   const pipeline = client.multi();
   pipeline.zRange(
     LEADERBOARD_WEEKLY,
-    Math.max(oldPlayerRank - ABOVE_PLAYER_COUNT, 0),
+    Math.max(oldPlayerRank - BELOW_PLAYER_COUNT, 0),
     oldPlayerRank + ABOVE_PLAYER_COUNT,
     { REV: true }
   );
   pipeline.zRange(
     LEADERBOARD_WEEKLY,
-    Math.max(newPlayerRank - ABOVE_PLAYER_COUNT, 0),
+    Math.max(newPlayerRank - BELOW_PLAYER_COUNT, 0),
     newPlayerRank + ABOVE_PLAYER_COUNT,
     { REV: true }
   );

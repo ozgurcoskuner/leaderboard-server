@@ -4,7 +4,6 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import { getLeaderboard } from "./services/leaderboard/leaderboard";
 import {
-  client,
   connectPubSub,
   connectRedis,
   publisher,
@@ -27,7 +26,7 @@ const app = express();
 const server = createServer(app);
 export const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: process.env.LOCAL_CLIENT_URL,
   },
 });
 
@@ -55,6 +54,11 @@ io.on(CONNECTION_EVENT, (socket) => {
 
   socket.on(REGISTER_PLAYER_EVENT, async (playerId) => {
     userMap.set(socket.id, { playerId });
+    console.log(userMap);
+    userMap.forEach((value, key) => {
+      console.log(value, "value");
+      console.log(key, "key");
+    });
     const leaderboardData = await getLeaderboard(playerId);
 
     socket.emit(LEADERBOARD_DATA_EVENT, leaderboardData);
@@ -62,6 +66,7 @@ io.on(CONNECTION_EVENT, (socket) => {
 
   socket.on(DISCONNECT_EVENT, () => {
     console.log("User disconnected");
+    userMap.delete(socket.id);
   });
 });
 

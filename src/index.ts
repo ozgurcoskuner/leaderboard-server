@@ -54,13 +54,7 @@ io.on(CONNECTION_EVENT, (socket) => {
 
   socket.on(REGISTER_PLAYER_EVENT, async (playerId) => {
     userMap.set(socket.id, { playerId });
-    console.log(userMap);
-    userMap.forEach((value, key) => {
-      console.log(value, "value");
-      console.log(key, "key");
-    });
     const leaderboardData = await getLeaderboard(playerId);
-
     socket.emit(LEADERBOARD_DATA_EVENT, leaderboardData);
   });
 

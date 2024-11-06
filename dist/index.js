@@ -52,11 +52,6 @@ exports.io.on(constants_1.CONNECTION_EVENT, (socket) => {
     console.log("A user connected");
     socket.on(constants_1.REGISTER_PLAYER_EVENT, (playerId) => __awaiter(void 0, void 0, void 0, function* () {
         userMap.set(socket.id, { playerId });
-        console.log(userMap);
-        userMap.forEach((value, key) => {
-            console.log(value, "value");
-            console.log(key, "key");
-        });
         const leaderboardData = yield (0, leaderboard_1.getLeaderboard)(playerId);
         socket.emit(constants_1.LEADERBOARD_DATA_EVENT, leaderboardData);
     }));

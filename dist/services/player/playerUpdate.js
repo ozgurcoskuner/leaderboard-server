@@ -23,25 +23,28 @@ const updatePlayerScore = (playerId, newScore) => __awaiter(void 0, void 0, void
 const updatePlayerRanks = (playerId, oldPlayerRank, newPlayerRank) => __awaiter(void 0, void 0, void 0, function* () {
     const pipeline = redis_1.client.multi();
     const rankDiff = oldPlayerRank - newPlayerRank;
-    if (rankDiff != 0) {
-        const [start, end] = rankDiff > 0
-            ? [newPlayerRank + 1, oldPlayerRank]
-            : [oldPlayerRank, newPlayerRank - 1];
-        const changedRankDiffPlayers = yield redis_1.client.zRangeWithScores(constants_1.LEADERBOARD_WEEKLY, start, end, { REV: true });
-        pipeline.hIncrBy(constants_1.RANKING_CHANGE_DAILY, playerId, rankDiff);
-        changedRankDiffPlayers.forEach(({ value }) => pipeline.hIncrBy(constants_1.RANKING_CHANGE_DAILY, value, rankDiff > 0 ? -1 : 1));
+    if (rankDiff === 0) {
+        return;
     }
+    const [start, end] = rankDiff > 0
+        ? [newPlayerRank + 1, oldPlayerRank]
+        : [oldPlayerRank, newPlayerRank - 1];
+    const changedRankDiffPlayers = yield redis_1.client.zRange(constants_1.LEADERBOARD_WEEKLY, start, end, { REV: true });
+    pipeline.hIncrBy(constants_1.RANKING_CHANGE_DAILY, playerId, rankDiff);
+    changedRankDiffPlayers.forEach((player) => pipeline.hIncrBy(constants_1.RANKING_CHANGE_DAILY, player, rankDiff > 0 ? -1 : 1));
     yield pipeline.exec();
+    return changedRankDiffPlayers;
 });
-const updateAffectedPlayers = (oldPlayerRank, newPlayerRank) => __awaiter(void 0, void 0, void 0, function* () {
+const updateAffectedPlayers = (oldPlayerRank_1, newPlayerRank_1, ...args_1) => __awaiter(void 0, [oldPlayerRank_1, newPlayerRank_1, ...args_1], void 0, function* (oldPlayerRank, newPlayerRank, updatedPlayers = []) {
     const isTop100 = newPlayerRank < constants_1.TOP_PLAYERS_COUNT || oldPlayerRank < constants_1.TOP_PLAYERS_COUNT;
     const pipeline = redis_1.client.multi();
     pipeline.zRange(constants_1.LEADERBOARD_WEEKLY, Math.max(oldPlayerRank - constants_1.BELOW_PLAYER_COUNT, 0), oldPlayerRank + constants_1.ABOVE_PLAYER_COUNT, { REV: true });
     pipeline.zRange(constants_1.LEADERBOARD_WEEKLY, Math.max(newPlayerRank - constants_1.BELOW_PLAYER_COUNT, 0), newPlayerRank + constants_1.ABOVE_PLAYER_COUNT, { REV: true });
     const result = yield pipeline.exec();
-    const surrondingPlayersSet = new Set(result.flat());
-    const surroundingPlayersIds = Array.from(surrondingPlayersSet);
-    redis_1.publisher.publish(constants_1.GAME_EVENT_CHANNEL, JSON.stringify({ isTop100, surroundingPlayersIds }));
+    const affectedPlayers = [...result.flat(), ...updatedPlayers];
+    const affectedPlayersSet = new Set(affectedPlayers);
+    const affectedPlayersIds = Array.from(affectedPlayersSet);
+    redis_1.publisher.publish(constants_1.GAME_EVENT_CHANNEL, JSON.stringify({ isTop100, affectedPlayersIds }));
 });
 const handleScoreUpdate = (playerId, newScore) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -51,8 +54,8 @@ const handleScoreUpdate = (playerId, newScore) => __awaiter(void 0, void 0, void
         if (newPlayerRank === null || oldPlayerRank === null) {
             throw new Error("Rank not found");
         }
-        yield updatePlayerRanks(playerId, oldPlayerRank, newPlayerRank);
-        yield updateAffectedPlayers(oldPlayerRank, newPlayerRank);
+        const updatedPlayers = yield updatePlayerRanks(playerId, oldPlayerRank, newPlayerRank);
+        yield updateAffectedPlayers(oldPlayerRank, newPlayerRank, updatedPlayers);
     }
     catch (e) {
         console.error(e);

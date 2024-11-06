@@ -23,29 +23,32 @@ const updatePlayerRanks = async (
 ) => {
   const pipeline = client.multi();
   const rankDiff = oldPlayerRank - newPlayerRank;
-  if (rankDiff != 0) {
-    const [start, end] =
-      rankDiff > 0
-        ? [newPlayerRank + 1, oldPlayerRank]
-        : [oldPlayerRank, newPlayerRank - 1];
-    const changedRankDiffPlayers = await client.zRangeWithScores(
-      LEADERBOARD_WEEKLY,
-      start,
-      end,
-      { REV: true }
-    );
-    pipeline.hIncrBy(RANKING_CHANGE_DAILY, playerId, rankDiff);
-    changedRankDiffPlayers.forEach(({ value }) =>
-      pipeline.hIncrBy(RANKING_CHANGE_DAILY, value, rankDiff > 0 ? -1 : 1)
-    );
+  if (rankDiff === 0) {
+    return;
   }
+  const [start, end] =
+    rankDiff > 0
+      ? [newPlayerRank + 1, oldPlayerRank]
+      : [oldPlayerRank, newPlayerRank - 1];
+  const changedRankDiffPlayers = await client.zRange(
+    LEADERBOARD_WEEKLY,
+    start,
+    end,
+    { REV: true }
+  );
+  pipeline.hIncrBy(RANKING_CHANGE_DAILY, playerId, rankDiff);
+  changedRankDiffPlayers.forEach((player) =>
+    pipeline.hIncrBy(RANKING_CHANGE_DAILY, player, rankDiff > 0 ? -1 : 1)
+  );
 
   await pipeline.exec();
+  return changedRankDiffPlayers;
 };
 
 const updateAffectedPlayers = async (
   oldPlayerRank: number,
-  newPlayerRank: number
+  newPlayerRank: number,
+  updatedPlayers: string[] = []
 ) => {
   const isTop100 =
     newPlayerRank < TOP_PLAYERS_COUNT || oldPlayerRank < TOP_PLAYERS_COUNT;
@@ -63,12 +66,13 @@ const updateAffectedPlayers = async (
     { REV: true }
   );
   const result = await pipeline.exec();
-  const surrondingPlayersSet = new Set(result.flat());
-  const surroundingPlayersIds = Array.from(surrondingPlayersSet);
+  const affectedPlayers = [...result.flat(), ...updatedPlayers];
+  const affectedPlayersSet = new Set(affectedPlayers);
+  const affectedPlayersIds = Array.from(affectedPlayersSet);
 
   publisher.publish(
     GAME_EVENT_CHANNEL,
-    JSON.stringify({ isTop100, surroundingPlayersIds })
+    JSON.stringify({ isTop100, affectedPlayersIds })
   );
 };
 const handleScoreUpdate = async (playerId: string, newScore: number) => {
@@ -81,8 +85,12 @@ const handleScoreUpdate = async (playerId: string, newScore: number) => {
       throw new Error("Rank not found");
     }
 
-    await updatePlayerRanks(playerId, oldPlayerRank, newPlayerRank);
-    await updateAffectedPlayers(oldPlayerRank, newPlayerRank);
+    const updatedPlayers = await updatePlayerRanks(
+      playerId,
+      oldPlayerRank,
+      newPlayerRank
+    );
+    await updateAffectedPlayers(oldPlayerRank, newPlayerRank, updatedPlayers);
   } catch (e) {
     console.error(e);
   }
